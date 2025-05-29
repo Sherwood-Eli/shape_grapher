@@ -59,12 +59,26 @@ class Intersection:
 
     def find_neighbors(self):
         self.neighbors = []
+        print("Finding neighbors of")
+        self.print_self()
         for line in self.lines:
             line.find_neighbors_of(self)
 
     def add_neighbor(self, new_neighbor):
         self.neighbors.append(new_neighbor)
+        print("adding neighbor")
+        new_neighbor.print_self()
+        print("to")
+        self.print_self()
 
+    def print_neighbors(self):
+        print("neighbors of (" + str(self.x) + ", " + str(self.y) + ") [", end="")
+        for inter in self.neighbors:
+            print("(" + str(inter.x) + ", " + str(inter.y) + ")", end=" ")
+        print("]")
+
+    def print_self(self):
+        print("(" + str(self.x) + ", " + str(self.y) + ")")
 
 
 
@@ -84,8 +98,9 @@ class Line:
         elif self.type == "v":
             while i < len(self.intersections) and self.intersections[i].y > intersection.y:
                 i+=1
-
-        self.intersections.insert(i, intersection)
+        
+        if i >= len(self.intersections) or self.intersections[i].x != intersection.x:
+            self.intersections.insert(i, intersection)
         return i
 
     def find_neighbors_of(self, intersection):
@@ -95,7 +110,16 @@ class Line:
                     intersection.add_neighbor(self.intersections[i-1])
                 if i < len(self.intersections)-1:
                     intersection.add_neighbor(self.intersections[i+1])
-
+                return
+    
+    def print_intersections(self):
+        if self.type == "v":
+            print("x = " + str(self.xint) + ": [", end="")
+        else:
+            print("y = " + str(self.slope) + "x + " + str(self.yint) + ": [", end="")
+        for inter in self.intersections:
+            print("(" + str(inter.x) + ", " + str(inter.y) + ")", end=" ")
+        print("]")
 
 
 class Shape:
@@ -112,6 +136,12 @@ class Shape:
 
 class Shape_Graph:
     def __init__(s):
+        print(s.signed_angle((1, 0), (0, 1)))
+        print(s.signed_angle((0, 1), (1, 0)))
+        print(s.signed_angle((1, -1), (1, 1)))
+        print(s.signed_angle((1, 1), (1, -1)))
+
+
         #Initialize object lists
         s.lines = []
         s.intersections = []
@@ -181,7 +211,9 @@ class Shape_Graph:
 
         if s.auto_color:
             #No guarantee that any of the shapes have not changed
+            #print("calling find all shapes")
             s.find_all_shapes()
+            #print("calling draw all shapes")
             s.draw_all_shapes()
 
     #Draw a vertical line and update logical model accordingly
@@ -205,7 +237,7 @@ class Shape_Graph:
 
     #Draws all shapes that the graph has found, must be run  after draw_all_shapes has been run
     def draw_all_shapes(s):
-        #print(s.shapes)
+        print("Drawing " + str(len(s.shapes)) + " shapes")
         for shape in s.shapes:
             s.draw_shape(shape)
 
@@ -293,40 +325,47 @@ class Shape_Graph:
     def signed_angle(s, A, B):
         cross = A[0]*B[1] - A[1]*B[0]
         dot = A[0]*B[0] + A[1]*B[1]
-        return math.atan2(cross, dot)  # result in radians
+        #by multiplying by negative 1, the resulting angle is positive if B is in the next pi degrees clockwise of A
+        return -1*math.atan2(cross, dot)  # result in radians
 
     
     #Finds the next point in a shape traversal
     #Traversal can be either clockwise or counter-clockwise depending on the sign of 'direction'
     def find_next_point(s, cur_point, vi, direction):
-        best = None
+        best_p = None
         best_angle = -4
         best_v = None
-        for n in cur_point.neighbors:
+        best_i = None
+        cur_point.print_neighbors()
+        for i in range(len(cur_point.neighbors)):
+            n = cur_point.neighbors[i]
             vf = (n.x-cur_point.x, n.y-cur_point.y)
             angle = direction*s.signed_angle(vi, vf)
-            #print("\nchecking point: (" + str(n.x) + ", " + str(n.y) + ")")
-            #print("Angle: " + str(angle))
+            print("\nchecking point: (" + str(n.x) + ", " + str(n.y) + ")")
+            print("Angle: " + str(angle))
             if angle != math.pi and angle > best_angle:
                 best_angle = angle
-                best = n
+                best_p = n
                 best_v = vf
-                #print("looks good!")
-            #else:
-                #print("not what we want")
+                best_i = i
+                print("looks good!")
+            else:
+                print("not what we want")
 
         if best_angle <=0:
             #print("deadend")
             return None, None
 
-        #print("choosing next point: (" + str(best.x) + ", " + str(best.y) + ")")
-        #print("new_v: " + str(best_v))
-        return best, best_v
+        print("choosing next point: (" + str(best_p.x) + ", " + str(best_p.y) + ")")
+        print("new_v: " + str(best_v))
+        #Remove point from neighbors so we do not consider this unique vector again
+        cur_point.neighbors.pop(best_i)
+        return best_p, best_v
 
 
     #Finds a shape starting with the vector between p1 and p2. Will serch in the direction specified
     def find_a_shape(s, p1, p2, direction):
-        #print("Finding shapes starting at (" + str(p1.x) + ", " + str(p1.y) + ")-->(" + str(p2.x) + ", " + str(p2.y) + ") and moving in the " + str(direction) + " direction")
+        print("Finding shapes starting at (" + str(p1.x) + ", " + str(p1.y) + ")-->(" + str(p2.x) + ", " + str(p2.y) + ") and moving in the " + str(direction) + " direction")
 
         cur_shape = []
         vi = (p2.x-p1.x, p2.y-p1.y)
@@ -342,16 +381,6 @@ class Shape_Graph:
         return Shape(cur_shape)
 
 
-    #Finds all shapes that 'starting_point' is a part of, searches in the clockwise direction
-    def find_shapes(s, starting_point):
-        all_shapes = []
-
-        for n in starting_point.neighbors:
-            new_shape = s.find_a_shape(starting_point, n, 1)
-            if new_shape != None:
-                all_shapes.append(new_shape)
-
-        return all_shapes
 
     #Finds all shapes in the current state of the graph
     def find_all_shapes(s):
@@ -365,10 +394,23 @@ class Shape_Graph:
         for inter_list in s.intersections:
             for inter in inter_list:
                 inter.find_neighbors()
-                #print("(" + str(inter.x) + ", " + str(inter.y) + ")", end=" ")
-                #draw_circle(canvas, inter.x, inter.y, .5)
-                s.shapes.extend(s.find_shapes(inter))
+                print("(" + str(inter.x) + ", " + str(inter.y) + ")", end=" ")
+                s.draw_circle(inter.x, inter.y, .5)
+                inter.print_neighbors()
+
+        #Need to check for shapes after all neighbors have been found
+        for inter_list in s.intersections:
+            for inter in inter_list:
+                for n in inter.neighbors:
+                    new_shape = s.find_a_shape(inter, n, 1)
+                    if new_shape != None:
+                        s.shapes.append(new_shape)
+
             #print("")
+
+        for line in s.lines:
+            line.print_intersections()
+
 
 
 

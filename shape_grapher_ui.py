@@ -94,7 +94,7 @@ def parse_input(equation):
     if len(equation_list) != 3:
         return None, None, None
     print(equation_list)
-    return int(equation_list[0]), int(equation_list[1]), int(equation_list[2])
+    return float(equation_list[0]), float(equation_list[1]), float(equation_list[2])
 
 
 def user_loop(sg):
