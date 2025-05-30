@@ -95,12 +95,14 @@ class Line:
         if self.type == "l":
             while i < len(self.intersections) and self.intersections[i].x > intersection.x:
                 i+=1
+            if i >= len(self.intersections) or self.intersections[i].x != intersection.x:
+                self.intersections.insert(i, intersection)
         elif self.type == "v":
             while i < len(self.intersections) and self.intersections[i].y > intersection.y:
                 i+=1
+            if i >= len(self.intersections) or self.intersections[i].y != intersection.y:
+                self.intersections.insert(i, intersection)
         
-        if i >= len(self.intersections) or self.intersections[i].x != intersection.x:
-            self.intersections.insert(i, intersection)
         return i
 
     def find_neighbors_of(self, intersection):
@@ -130,22 +132,25 @@ class Shape:
 
 
     def get_area(s):
-        return -1
+        area = 0
+        i = len(s.points)-1
+        p1 = s.points[0]
+        while i >= 0:
+            p2 = s.points[i]
+            area += (p1.x*p2.y)-(p1.y*p2.x)
+            p1 = p2
+            i -= 1
+        return area/2
 
 
 
 class Shape_Graph:
     def __init__(s):
-        print(s.signed_angle((1, 0), (0, 1)))
-        print(s.signed_angle((0, 1), (1, 0)))
-        print(s.signed_angle((1, -1), (1, 1)))
-        print(s.signed_angle((1, 1), (1, -1)))
-
-
         #Initialize object lists
         s.lines = []
         s.intersections = []
         s.shapes = []
+        s.color_rules = {}
 
         #Lets the graph know if the shapes are drawn or not
         s.shapes_are_drawn = False
@@ -189,6 +194,9 @@ class Shape_Graph:
 
     def get_coloring_protocol(s):
         return s.coloring_protocol
+
+    def add_color_rule(s, area, color):
+        s.color_rules[str(float(area))] = color
 
 
 
@@ -248,7 +256,14 @@ class Shape_Graph:
             shape_coords.append((x(coord.x), y(coord.y)))
         #print("making shape: ", shape_coords)
         #c.create_polygon(*shape_coords, fill=colors[random.randint(0,len(colors)-1)], outline='black')
-        s.canvas.create_polygon(*shape_coords, fill="#{:02x}{:02x}{:02x}".format(random.randint(0,255), random.randint(0, 255), random.randint(0,255)), outline='black')
+        if s.coloring_protocol:
+            try:
+                color = s.color_rules[str(shape.area)]
+            except:
+                color = ""
+            s.canvas.create_polygon(*shape_coords, fill=color, outline='black')
+        else:
+            s.canvas.create_polygon(*shape_coords, fill="#{:02x}{:02x}{:02x}".format(random.randint(0,255), random.randint(0, 255), random.randint(0,255)), outline='black')
 
 
     def rerender_shapes(s):
@@ -341,23 +356,23 @@ class Shape_Graph:
             n = cur_point.neighbors[i]
             vf = (n.x-cur_point.x, n.y-cur_point.y)
             angle = direction*s.signed_angle(vi, vf)
-            print("\nchecking point: (" + str(n.x) + ", " + str(n.y) + ")")
-            print("Angle: " + str(angle))
+            #print("\nchecking point: (" + str(n.x) + ", " + str(n.y) + ")")
+            #print("Angle: " + str(angle))
             if angle != math.pi and angle > best_angle:
                 best_angle = angle
                 best_p = n
                 best_v = vf
                 best_i = i
-                print("looks good!")
-            else:
-                print("not what we want")
+                #print("looks good!")
+            #else:
+                #print("not what we want")
 
         if best_angle <=0:
             #print("deadend")
             return None, None
 
-        print("choosing next point: (" + str(best_p.x) + ", " + str(best_p.y) + ")")
-        print("new_v: " + str(best_v))
+        #print("choosing next point: (" + str(best_p.x) + ", " + str(best_p.y) + ")")
+        #print("new_v: " + str(best_v))
         #Remove point from neighbors so we do not consider this unique vector again
         cur_point.neighbors.pop(best_i)
         return best_p, best_v
@@ -365,7 +380,7 @@ class Shape_Graph:
 
     #Finds a shape starting with the vector between p1 and p2. Will serch in the direction specified
     def find_a_shape(s, p1, p2, direction):
-        print("Finding shapes starting at (" + str(p1.x) + ", " + str(p1.y) + ")-->(" + str(p2.x) + ", " + str(p2.y) + ") and moving in the " + str(direction) + " direction")
+        #print("Finding shapes starting at (" + str(p1.x) + ", " + str(p1.y) + ")-->(" + str(p2.x) + ", " + str(p2.y) + ") and moving in the " + str(direction) + " direction")
 
         cur_shape = []
         vi = (p2.x-p1.x, p2.y-p1.y)
@@ -394,8 +409,8 @@ class Shape_Graph:
         for inter_list in s.intersections:
             for inter in inter_list:
                 inter.find_neighbors()
-                print("(" + str(inter.x) + ", " + str(inter.y) + ")", end=" ")
-                s.draw_circle(inter.x, inter.y, .5)
+                #print("(" + str(inter.x) + ", " + str(inter.y) + ")", end=" ")
+                #s.draw_circle(inter.x, inter.y, .5)
                 inter.print_neighbors()
 
         #Need to check for shapes after all neighbors have been found
@@ -404,6 +419,7 @@ class Shape_Graph:
                 for n in inter.neighbors:
                     new_shape = s.find_a_shape(inter, n, 1)
                     if new_shape != None:
+                        print("Area of new shape:", new_shape.area)
                         s.shapes.append(new_shape)
 
             #print("")
